@@ -64,13 +64,14 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .prizeline .jp{font-size:13px}
 .prizeline .jp::before{content:'·';margin-right:10px;color:#6b6fa8}
 .prizeline .jp em{font-size:14px}
-.globe{position:relative;width:min(100%,calc((100vh - 156px) * .7));min-width:300px;max-width:720px}
+.globe{position:relative;container-type:inline-size;width:min(100%,calc((100vh - 156px) * .7));min-width:300px;max-width:720px}
 .globe canvas{position:absolute;inset:0;width:100%;height:100%}
 /* the countdown to the draw, over the empty top of the globe while tickets are on sale */
-.globe .latest.mcount{display:grid;position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:118px;height:118px;border-color:#a5b4fc;background:conic-gradient(var(--cyan) calc(var(--p)*1%),#ffffff18 0);box-shadow:0 0 28px #22d3ee55}
+.globe .latest.mcount{display:grid;position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:clamp(64px,34cqw,118px);height:clamp(64px,34cqw,118px);border-color:#a5b4fc;background:conic-gradient(var(--cyan) calc(var(--p)*1%),#ffffff18 0);box-shadow:0 0 28px #22d3ee55}
 .globe .latest.mcount>div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#0b0e3ee6}
-.globe .latest.mcount b{font-size:28px;color:#fff}
-.globe .latest.mcount small{font-size:11px;color:var(--mut)}
+.globe .latest.mcount b{font-size:clamp(15px,8cqw,28px);color:#fff;line-height:1}
+.globe .latest.mcount small{font-size:clamp(9px,3cqw,11px);color:var(--mut);white-space:nowrap}
+@container (max-width:259px){.globe .latest.mcount small{display:none}}
 .callout{position:relative;display:grid;grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:'tally ball call' 'tally ball recent';align-items:center;column-gap:24px;row-gap:8px;min-width:0;max-width:640px;width:100%}
 .tally{grid-area:tally;display:flex;flex-direction:column;align-items:center}
 .tally b{font:700 44px/1 var(--display);font-variant-numeric:tabular-nums}
@@ -458,8 +459,6 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 @media (max-width:999px){
   .app.playing .globe{width:min(100%,520px,calc((100svh - 480px) * .7));min-width:170px}
   .app.playing .prizeline .jp{display:none}
-  .app.playing .globe .latest.mcount{width:min(118px,34%);height:auto;aspect-ratio:1}
-  .app.playing .globe .latest.mcount b{font-size:clamp(18px,5vw,28px)}
   .app.playing .tickets{padding:10px 8px}
   .app.playing .ttabs{margin-bottom:6px}
   .app.playing .ttabs button{padding:3px 2px}
@@ -469,4 +468,33 @@ button svg{width:18px;height:18px;vertical-align:-4px}
   .tlist.stack .tgrid,.tlist.stack .trow{gap:3px}
   .tlist.stack .tgrid span{height:26px;font-size:13px;border-radius:6px;box-shadow:inset 0 -2px 0 #c8c1e6}
   .tlist.stack .tgrid span.d{box-shadow:0 0 8px var(--t),inset 0 0 0 2px #ffffff66}
+}
+/* small phones, under 400px wide */
+@media (max-width:400px){
+  .topbar{gap:6px}
+  .logo{font-size:19px;gap:3px}
+  .logo .l2{padding:0 3px 1px}
+  .room{font-size:11px}
+  .room .dotsep{font-size:10px}
+  .bal{padding:3px 4px 3px 7px;gap:4px}
+  .bt em{font-size:8px}
+  .bt b{font-size:11.5px}
+  .topup{width:24px;height:24px}
+  .chips{gap:5px}
+  .chipw{gap:6px;min-width:0}
+  .chip i{font-size:16px}
+  .ctot{font-size:10px;padding:2px 6px}
+  .app.playing .globe{min-width:150px}
+}
+@media (max-width:350px){
+  .room .dotsep{display:none}
+  .topbar{gap:5px}
+  .topbar>:first-child button,.topbar>:first-child{width:34px;height:34px}
+  .logo{font-size:15px}
+  .logo .l2{border-width:1.5px;border-radius:6px}
+  .bt b{font-size:11px}
+  .ctot{font-size:9px;padding:1px 4px}
+  .tlist.stack .tgrid span{font-size:12px;height:25px}
+  .tlist.stack .ticket header b{font-size:11px}
+  .ttabs button{font-size:10px}
 }
