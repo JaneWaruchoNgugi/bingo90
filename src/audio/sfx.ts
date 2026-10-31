@@ -220,6 +220,8 @@ function createSfx() {
   let ir!: AudioBuffer
   /** the groove pre-rendered once per mood, so a busy page can never make it stutter */
   const loops: { idle?: AudioBuffer; draw?: AudioBuffer } = {}
+  /** the win sounds pre-rendered too: built live they create thousands of nodes at once and stall the page */
+  const shots: Record<string, AudioBuffer[]> = {}
   interface Voice {
     src: AudioBufferSourceNode
     g: GainNode
@@ -317,6 +319,7 @@ function createSfx() {
         if (name.startsWith('music')) syncMusic()
       }),
     )
+    setTimeout(() => renderShots().catch(() => {}), 1200)
     // the synthesized groove is only rendered if the recorded music cannot be played
     Promise.allSettled(music).then(() => {
       if (bank.music) return
@@ -778,6 +781,72 @@ function createSfx() {
   /** eight bars while waiting (the hook plays every other time round); the draw loop is half that */
   const LOOP_STEPS = 128
 
+  /** Render one synthesized sound offline (sfx, crowd and reverb), at the level `trim` (dB). */
+  async function renderShot(dur: number, trim: number, fn: (t: number) => void) {
+    const real = { ctx, revIn, sfxBus, crowdBus }
+    const sr = real.ctx!.sampleRate
+    const off = new OfflineAudioContext(2, Math.round(sr * dur), sr)
+    const rv = off.createConvolver()
+    rv.buffer = ir
+    const wet = off.createGain()
+    wet.gain.value = 0.38
+    rv.connect(wet)
+    wet.connect(off.destination)
+    ctx = off as unknown as AudioContext
+    revIn = off.createGain()
+    revIn.connect(rv)
+    sfxBus = off.createGain()
+    sfxBus.gain.value = 1.5
+    sfxBus.connect(off.destination)
+    crowdBus = off.createGain()
+    crowdBus.gain.value = 1.4
+    crowdBus.connect(off.destination)
+    boost = db(trim)
+    try {
+      fn(0.02)
+    } finally {
+      boost = 1
+      ;({ ctx, revIn, sfxBus, crowdBus } = real)
+    }
+    return off.startRendering()
+  }
+  /** two takes of each win sound, rendered one at a time while the page is quiet */
+  async function renderShots() {
+    const jobs: [string, number, number, (t: number) => void][] = [
+      ['bingo', 2.6, TRIM.bingo, fanfare],
+      ['cheer-big', 3.8, TRIM.cheer, t => crowd(t, 2.6, 1)],
+      ['cheer-small', 3.1, TRIM.cheer, t => crowd(t, 1.9, 0.7)],
+    ]
+    for (let take = 0; take < 2; take++)
+      for (const [name, dur, trim, fn] of jobs) {
+        const b = await renderShot(dur, trim, fn)
+        ;(shots[name] ||= []).push(b)
+      }
+  }
+  /** play a pre-rendered win sound straight into the mix; false if it isn't ready yet */
+  function shot(name: string, t: number) {
+    const all = shots[name]
+    if (!all?.length) return false
+    const c = ctx!
+    const src = c.createBufferSource()
+    src.buffer = all[Math.floor(Math.random() * all.length)]
+    src.connect(master)
+    src.start(t)
+    return true
+  }
+  /** the win fanfare: ringing slot bells, a brass call, a big stab and a coin shower */
+  function fanfare(t: number) {
+    impact(t, 0.4)
+    // the slot bells: two pitches ringing in turn
+    for (let k = 0; k < 10; k++) bell(mtof(k % 2 ? 91 : 88), t + 0.05 + k * 0.075, 0.03, 0.35, { pan: k % 2 ? 0.45 : -0.45 }, 3.01, 1.6)
+    // E – E – E – B, then a held E major chord
+    ;[[76, 0], [76, 0.14], [76, 0.28], [83, 0.42]].forEach(([m, d]) => brass(mtof(m), t + 0.1 + d, 0.12, 0.022))
+    stab([52, 56, 59, 64, 68, 71], t + 0.72, 0.8, 0.011)
+    impact(t + 0.72, 0.3)
+    // the coin shower
+    for (let k = 0; k < 18; k++) clink(rnd(2500, 3800), t + 0.75 + k * 0.07 + Math.random() * 0.04, 0.025 * (1 - k / 24), rnd(-0.8, 0.8))
+  }
+
   /**
    * Render the groove offline. The tail that rings past the end is folded back
    * onto the start, so the buffer loops without a seam.
@@ -966,7 +1035,8 @@ function createSfx() {
       const t = now()
       if (clip(big ? 'cheer' : 'cheer-small', t, { bus: 'crowd', dur: big ? 2.5 : 1.8 })) return
       duck(t, 0.1, big ? 2.6 : 1.9)
-      crowd(t, big ? 2.6 : 1.9, big ? 1 : 0.7)
+      // only the pre-rendered crowd: building it live stalls the page
+      shot(big ? 'cheer-big' : 'cheer-small', t)
     },
     /** a near miss: a muted "wah-wah-wah-waaah" that's more cheeky than sad */
     aww() {
@@ -1098,16 +1168,10 @@ function createSfx() {
       if (!ctx || ctx.state !== 'running') return
       const t = now()
       duck(t, 0.12, 1)
-      if (ok() && !clip('jackpot', t)) {
+      if (ok() && !clip('jackpot', t) && !shot('bingo', t)) {
+        // not rendered yet: a light live version
         impact(t, 0.4)
-        // the slot bells: two pitches ringing in turn
-        for (let k = 0; k < 10; k++) bell(mtof(k % 2 ? 91 : 88), t + 0.05 + k * 0.075, 0.03, 0.35, { pan: k % 2 ? 0.45 : -0.45 }, 3.01, 1.6)
-        // E – E – E – B, then a held E major chord
         ;[[76, 0], [76, 0.14], [76, 0.28], [83, 0.42]].forEach(([m, d]) => brass(mtof(m), t + 0.1 + d, 0.12, 0.022))
-        stab([52, 56, 59, 64, 68, 71], t + 0.72, 0.8, 0.011)
-        impact(t + 0.72, 0.3)
-        // the coin shower
-        for (let k = 0; k < 18; k++) clink(rnd(2500, 3800), t + 0.75 + k * 0.07 + Math.random() * 0.04, 0.025 * (1 - k / 24), rnd(-0.8, 0.8))
       }
       // the crowd follows from cheer(), half a second later
     },
