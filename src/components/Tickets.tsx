@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { PRIZES, kes } from '../game/constants'
-import { TicketRow } from './TicketRow'
+import { CardGrid } from './TicketRow'
 import { useGame } from '../hooks/useGame'
 
 /** One frame colour per card, in buying order. */
@@ -11,7 +11,6 @@ export const THEMES = ['#3b82f6', '#ec4899', '#10b981', '#a855f7', '#f59e0b', '#
 export function Tickets() {
   const g = useGame()
   const set = g.calledSet
-  const need = PRIZES[Math.min(g.stage, 2)].rows
   const cards = g.sorted.slice().sort((a, b) => a.i - b.i)
   const [focus, setFocus] = useState(-1)
   // a new set of cards starts on the overview
@@ -68,19 +67,15 @@ export function Tickets() {
                       Card {i + 1} <em>{kes(t.price)}</em>
                     </b>
                     <span className={'tg' + (g.phase !== 'buy' && tg === 0 ? ' done' : '')}>
-                      {g.phase === 'buy' ? '15 nos' : tg === 0 ? (need === 3 ? 'House!' : 'Won') : `${tg} to go`}
+                      {g.phase === 'buy' ? '24 nos' : tg === 0 ? 'Won all' : `${tg} to go`}
                     </span>
                   </header>
-                  <div className="tgrid">
-                    {t.rows.map((r, ri) => (
-                      <TicketRow key={ri} row={r} set={set} fresh={g.fresh} />
-                    ))}
-                  </div>
+                  <CardGrid g={t.rows} set={set} fresh={g.fresh} />
                   <footer>
                     <span className="tbar" aria-hidden="true">
-                      <i style={{ width: (marked.length / 15) * 100 + '%' }} />
+                      <i style={{ width: (marked.length / 24) * 100 + '%' }} />
                     </span>
-                    <b>{marked.length}/15</b>
+                    <b>{marked.length}/24</b>
                   </footer>
                 </article>
               )

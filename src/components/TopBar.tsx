@@ -37,7 +37,7 @@ export function TopBar() {
   const [full, setFull] = useState(false)
   const [me, setMe] = useState(false)
   const meRef = useRef<HTMLDivElement>(null)
-  const bal = useCountUp(g.pts, !!g.win)
+  const bal = useCountUp(g.pts, false)
   const rising = bal < g.pts
 
   useEffect(() => {
@@ -67,12 +67,11 @@ export function TopBar() {
       </div>
       <div className="room">
         <span>
-          <i className="live" aria-hidden="true" /> Round {g.round}
+          <i className="live" aria-hidden="true" /> {g.players} players
         </span>
-        <span className="dotsep">{g.players} players</span>
       </div>
       <div className={'bal' + (rising ? ' up' : '')}>
-        {g.gain && !g.win && (
+        {g.gain && (
           <span key={g.gain.key} className="gain" aria-live="polite">
             +KES {g.gain.amt.toLocaleString('en-US')}
           </span>

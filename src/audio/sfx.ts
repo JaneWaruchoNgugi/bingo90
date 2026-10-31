@@ -112,7 +112,7 @@ const MUSIC = 3.2
  * Per-sound level trims in dB, measured by playing each sound through the master bus,
  * so the sounds sit above the music and small UI sounds stay subtle but audible.
  */
-const TRIM: Record<string, number> = { tick: 6.5, pop: 4, swipe: -3, go: 4.5, end: 2, aww: -3, cheer: 9, bingo: 2.5 }
+const TRIM: Record<string, number> = { tick: 6.5, pop: 4, swipe: -3, go: 4.5, end: 2, aww: -3, cheer: 15, bingo: 2.5 }
 const db = (x: number) => 10 ** (x / 20)
 const S16 = 60 / BPM / 4
 
@@ -672,52 +672,97 @@ function createSfx() {
     tone(1900, t, 0.02, { vol: v * 0.4, type: 'square', lp: 4000, a: 0.001, pan, send: 0 })
   }
   // ---- crowd ----
-  /** one pair of hands: a sharp double transient */
-  function handClap(t: number, v: number, pan: number) {
-    const f = rnd(900, 2600)
-    noise(t, rnd(0.02, 0.045), { f0: f, q: rnd(0.8, 2), vol: v, a: 0.001, pan, bus: 'crowd', send: 0.25 })
-    noise(t + 0.008, 0.03, { f0: f * 1.3, q: 1.5, vol: v * 0.5, a: 0.001, pan, bus: 'crowd', send: 0.2 })
-  }
-  /** a crowd voice: a gliding buzz through vowel formants */
-  function voice(t: number, f0: number, f1: number, dur: number, v: number, fm: [number, number], pan: number) {
+  /**
+   * One person shouting "wooo-yeah!": a voiced buzz with a little breath, gliding up in pitch,
+   * through three vowel formants that open from "oo" to "ah".
+   */
+  function voice(t: number, f0: number, dur: number, v: number, pan: number, female: boolean) {
     const c = ctx!
     const os = c.createOscillator()
     os.type = 'sawtooth'
+    const peak = f0 * rnd(1.35, 1.7)
     os.frequency.setValueAtTime(f0, t)
-    os.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.6)
-    const g = env(t, dur, v, 0.12)
-    for (const f of fm) {
+    os.frequency.exponentialRampToValueAtTime(peak, t + dur * 0.35)
+    os.frequency.exponentialRampToValueAtTime(peak * 0.82, t + dur)
+    // a shaky, excited voice
+    const lfo = c.createOscillator()
+    lfo.frequency.value = rnd(5, 7.5)
+    const lg = c.createGain()
+    lg.gain.value = f0 * 0.035
+    lfo.connect(lg)
+    lg.connect(os.frequency)
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(v * boost, t + 0.07)
+    g.gain.setValueAtTime(v * boost, t + dur * 0.55)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    const sh = female ? 1.18 : 1
+    // [start (oo), end (ah), Q, level]
+    const fm: [number, number, number, number][] = [
+      [330 * sh, 780 * sh, 7, 1],
+      [880 * sh, 1250 * sh, 9, 0.6],
+      [2400 * sh, 2700 * sh, 10, 0.25],
+    ]
+    const breath = noiseSrc(t, dur + 0.05)
+    const bg = c.createGain()
+    bg.gain.value = 0.25
+    breath.connect(bg)
+    for (const [a, b2, q, l] of fm) {
       const bq = c.createBiquadFilter()
       bq.type = 'bandpass'
-      bq.frequency.value = f
-      bq.Q.value = 5
+      bq.Q.value = q
+      bq.frequency.setValueAtTime(a, t)
+      bq.frequency.exponentialRampToValueAtTime(b2, t + dur * 0.3)
+      const fg = c.createGain()
+      fg.gain.value = l
       os.connect(bq)
-      bq.connect(g)
+      bg.connect(bq)
+      bq.connect(fg)
+      fg.connect(g)
     }
-    route(g, c.createGain(), { pan, bus: 'crowd', send: 0.45 })
+    route(g, c.createGain(), { pan, bus: 'crowd', send: 0.3 })
     os.start(t)
+    lfo.start(t)
     os.stop(t + dur + 0.05)
+    lfo.stop(t + dur + 0.05)
   }
+  /** a two-note wolf whistle: "fweet-fwoo" */
   function whistle(t: number, v: number) {
-    const f = rnd(1900, 2600)
-    tone(f, t, 0.8, { vol: v, to: f * 1.35, gl: 0.3, vib: 40, a: 0.04, pan: rnd(-0.7, 0.7), bus: 'crowd', send: 0.4 })
+    const f = rnd(1700, 2300)
+    const pan = rnd(-0.7, 0.7)
+    tone(f * 0.7, t, 0.22, { vol: v, to: f * 1.25, gl: 0.18, a: 0.02, pan, bus: 'crowd', send: 0.3 })
+    tone(f * 1.2, t + 0.3, 0.45, { vol: v, to: f * 0.55, gl: 0.42, a: 0.02, pan, bus: 'crowd', send: 0.3 })
   }
-  /** a hall full of people cheering and clapping: swells in, holds, then thins out */
+  /** one pair of hands: a crisp, bright double transient */
+  function handClap(t: number, v: number, pan: number) {
+    const f = rnd(1200, 3200)
+    noise(t, rnd(0.012, 0.025), { f0: f, q: rnd(1, 2.2), vol: v, a: 0.0005, pan, bus: 'crowd', send: 0.15 })
+    noise(t + 0.006, 0.02, { ft: 'highpass', f0: 4000, vol: v * 0.35, a: 0.0005, pan, bus: 'crowd', send: 0.1 })
+  }
+  /**
+   * A studio audience cheering: a wave of "wooo!" voices, wolf whistles and dense applause
+   * that swells, holds, then thins out. Only a light wash of noise underneath, so the voices
+   * and claps stay clear.
+   */
   function crowd(t: number, d: number, size: number) {
-    const rate = 38 * size
+    // applause: lots of claps a second, louder at the front, fading out at the end
+    const rate = 70 * size
     for (let k = 0, n = Math.floor(rate * d); k < n; k++) {
       const x = Math.random() * d
-      const lvl = Math.min(1, x / 0.35) * (x > d * 0.6 ? 1 - (x - d * 0.6) / (d * 0.4) : 1)
-      handClap(t + x, 0.09 * (0.3 + 0.7 * lvl) * rnd(0.5, 1), rnd(-0.9, 0.9))
+      const lvl = Math.min(1, x / 0.2) * (x > d * 0.55 ? Math.max(0, 1 - (x - d * 0.55) / (d * 0.45)) : 1)
+      handClap(t + x, 0.11 * (0.25 + 0.75 * lvl) * rnd(0.5, 1), rnd(-0.95, 0.95))
     }
-    // the roar under the claps
-    noise(t, d, { f0: 700, f1: 1100, q: 0.6, vol: 0.06 * size, a: 0.3, bus: 'crowd', send: 0.4 })
-    noise(t, d * 0.8, { f0: 300, q: 0.8, vol: 0.05 * size, a: 0.25, bus: 'crowd', send: 0.3 })
-    for (let k = 0; k < 12 * size; k++) {
-      const f = rnd(200, 460)
-      voice(t + Math.random() * 1.2, f, f * rnd(1.3, 1.8), rnd(0.8, 1.6), 0.028, k % 2 ? [700, 1150] : [380, 850], rnd(-0.85, 0.85))
+    // a soft wash of the room under it
+    noise(t, d, { f0: 1600, q: 0.5, vol: 0.018 * size, a: 0.15, bus: 'crowd', send: 0.4 })
+    // the shouts: most in the first second, a few late ones
+    const n = Math.round(22 * size)
+    for (let k = 0; k < n; k++) {
+      const fem = k % 2 === 1
+      const f = fem ? rnd(230, 330) : rnd(120, 190)
+      const late = k > n * 0.75
+      voice(t + (late ? rnd(0.7, 1.4) : rnd(0, 0.35)), f, rnd(0.6, 1.1), 0.05 * rnd(0.6, 1), rnd(-0.9, 0.9), fem)
     }
-    for (let k = 0; k < 3 * size; k++) whistle(t + 0.2 + Math.random() * d * 0.5, 0.035)
+    for (let k = 0; k < Math.max(1, Math.round(3 * size)); k++) whistle(t + 0.15 + Math.random() * d * 0.5, 0.03)
   }
   /** pull the music down under a big moment */
   function duck(t: number, depth: number, hold: number) {
@@ -920,11 +965,8 @@ function createSfx() {
       if (!okC()) return
       const t = now()
       if (clip(big ? 'cheer' : 'cheer-small', t, { bus: 'crowd', dur: big ? 2.5 : 1.8 })) return
-      crowd(t, big ? 2.2 : 1.3, big ? 0.75 : 0.45)
-      // the cannon: a burst of air and paper
-      noise(t, 0.5, { f0: 2400, f1: 900, q: 0.6, vol: 0.08, a: 0.002, bus: 'crowd', send: 0.4 })
-      tone(90, t, 0.25, { vol: 0.12, to: 45, a: 0.002, bus: 'crowd', send: 0.1 })
-      if (big) [0.15, 0.5].forEach((d, k) => tone(mtof(k ? 76 : 71), t + d, 0.35, { vol: 0.03, type: 'sawtooth', lp: 2200, vib: 18, a: 0.01, pan: k ? 0.5 : -0.5, bus: 'crowd', send: 0.3 }))
+      duck(t, 0.1, big ? 2.6 : 1.9)
+      crowd(t, big ? 2.6 : 1.9, big ? 1 : 0.7)
     },
     /** a near miss: a muted "wah-wah-wah-waaah" that's more cheeky than sad */
     aww() {
@@ -1051,29 +1093,23 @@ function createSfx() {
       tone(82, t + 0.52, 1.2, { vol: 0.14, to: 41, a: 0.004, send: 0.2 })
       stab([52, 55, 59, 64], t + 0.52, 1.4, 0.007)
     },
-    /** a win: the jackpot. Sirens, ringing slot bells, a big stab and a coin shower, then the crowd */
+    /** a win: ringing slot bells, a brass call, a big stab and a coin shower (the crowd comes from cheer()) */
     bingo() {
       if (!ctx || ctx.state !== 'running') return
       const t = now()
-      duck(t, 0.15, 2.8)
+      duck(t, 0.12, 1)
       if (ok() && !clip('jackpot', t)) {
         impact(t, 0.4)
-        siren(t, 4, 0.016)
         // the slot bells: two pitches ringing in turn
-        for (let k = 0; k < 20; k++) bell(mtof(k % 2 ? 91 : 88), t + 0.05 + k * 0.075, 0.03, 0.35, { pan: k % 2 ? 0.45 : -0.45 }, 3.01, 1.6)
+        for (let k = 0; k < 10; k++) bell(mtof(k % 2 ? 91 : 88), t + 0.05 + k * 0.075, 0.03, 0.35, { pan: k % 2 ? 0.45 : -0.45 }, 3.01, 1.6)
         // E – E – E – B, then a held E major chord
         ;[[76, 0], [76, 0.14], [76, 0.28], [83, 0.42]].forEach(([m, d]) => brass(mtof(m), t + 0.1 + d, 0.12, 0.022))
-        stab([52, 56, 59, 64, 68, 71], t + 0.72, 1.3, 0.011)
+        stab([52, 56, 59, 64, 68, 71], t + 0.72, 0.8, 0.011)
         impact(t + 0.72, 0.3)
         // the coin shower
-        for (let k = 0; k < 18; k++) clink(rnd(2500, 3800), t + 0.75 + k * 0.07 + Math.random() * 0.04, 0.035 * (1 - k / 24), rnd(-0.8, 0.8))
+        for (let k = 0; k < 18; k++) clink(rnd(2500, 3800), t + 0.75 + k * 0.07 + Math.random() * 0.04, 0.025 * (1 - k / 24), rnd(-0.8, 0.8))
       }
-      if (!okC()) return
-      // the cheer itself follows from cheer(), half a second later
-      if (!clip('applause', t + 0.05, { bus: 'crowd', dur: 2.5 })) {
-        boost = db(18)
-        crowd(t + 0.05, 2.5, 0.9)
-      }
+      // the crowd follows from cheer(), half a second later
     },
   }
   // every sound starts at its own trim and leaves the level at 1 for the next one

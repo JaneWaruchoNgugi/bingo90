@@ -1,6 +1,5 @@
 import { X } from 'lucide-react'
 import { kes } from '../game/constants'
-import { TicketRow } from './TicketRow'
 import { useGame } from '../hooks/useGame'
 
 /** Short call-outs over the screen: hits, one to go, prizes going to other players. */
@@ -31,33 +30,17 @@ export function HostNote() {
   )
 }
 
-/** The win popup: the prize, what it paid, and the winning ticket with its complete rows lit. */
+/** A win: a small banner that slides in under the header and goes by itself, never covering the draw. */
 export function WinPopup() {
   const g = useGame()
   const w = g.win
   if (!w) return null
+  const i = g.tickets.indexOf(w.ticket)
   return (
-    <div className="winwrap" onClick={() => g.hideWin()} key={w.key}>
-      <div className="confetti" aria-hidden="true">
-        {w.confetti.map((c, i) => (
-          <i
-            key={i}
-            className={c.round ? 'rnd' : ''}
-            style={{ left: c.left, background: c.bg, '--dx': c.dx, '--dy': c.dy, '--rot': c.rot, animationDelay: c.delay, animationDuration: c.dur } as React.CSSProperties}
-          />
-        ))}
-      </div>
-      <div className={'winbox' + (w.jackpot ? ' jp' : '')} role="dialog" aria-label={w.title}>
-        <p className="wt">{w.title}</p>
-        <p className="wp">{w.prize} · {w.balls} balls</p>
-        <p className="wamt">{kes(w.pay)}</p>
-        <div className="tgrid mini" style={{ '--t': '#ec4899' } as React.CSSProperties}>
-          {w.ticket.rows.map((r, ri) => (
-            <TicketRow key={ri} row={r} set={g.calledSet} />
-          ))}
-        </div>
-        <p className="wtot">This round: {kes(g.roundWin)}</p>
-      </div>
+    <div className="winbar" role="status" key={w.key}>
+      <b>{w.title}</b>
+      <em>+{kes(w.pay)}</em>
+      {i >= 0 && <small>Card {i + 1}</small>}
     </div>
   )
 }

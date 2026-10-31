@@ -9,12 +9,11 @@ import {
   CHAT_LINES,
   CHATTERS,
   END_SECS,
-  JACKPOT_BALLS,
-  JACKPOT_X,
   LITE,
   PRICES,
   QUICK,
   PRIZES,
+  prizeAt,
   START_POINTS,
   STRIP,
   MAX_CARDS,
@@ -22,7 +21,7 @@ import {
   kes,
   rnd,
 } from './constants'
-import { makeStrip, numsOf, rowsDone, toGo, type Grid, type Ticket } from './tickets'
+import { levelOf, makeStrip, numsOf, toGo, type Grid, type Ticket } from './tickets'
 
 export type Phase = 'buy' | 'draw' | 'end'
 
@@ -89,8 +88,6 @@ export interface WinView {
   prize: string
   pay: number
   ticket: Ticket
-  /** rows of the ticket that are complete, highlighted in the popup */
-  done: boolean[]
   balls: number
   jackpot: boolean
   confetti: ConfettiPiece[]
@@ -99,6 +96,8 @@ export interface WinView {
 interface Bot {
   name: string
   ts: Grid[]
+  /** prize level reached this round */
+  lv?: number
 }
 
 /** ms the blower runs before the first ball */
@@ -108,7 +107,7 @@ const CALL_GAP = 450
 /** ms before the round ends after the Full House goes to another player */
 const PRIZE_PAUSE = 1600
 /** ms the player's win popup stays up (the draw carries on behind it) */
-const WIN_PAUSE = 3600
+const WIN_PAUSE = 2600
 
 function loadPrefs(): Prefs {
   let raw: Partial<Prefs> = {}
@@ -138,7 +137,7 @@ export class Game {
   called: number[] = []
   /** the ball that just came out, shown big with its call */
   last: number | null = null
-  /** the prize being played for: 0 one line, 1 two lines, 2 full house, 3 = round over */
+  /** the prize being played for: index into PRIZES, past the end = round over */
   stage = 0
   claims: (Claim | null)[] = [null, null, null]
   tickets: Ticket[] = []
@@ -150,6 +149,8 @@ export class Game {
   picker: { cards: Grid[]; prices: number[]; at: number; taken: number[]; quick: number } | null = null
   fresh: number | null = null
   roundWin = 0
+  /** per card, the highest prize level it has been paid for this round */
+  paid = new Map<number, number>()
   winners: WinRow[] = []
   chatLog: ChatMsg[] = []
   toasts: Toast[] = []
@@ -220,10 +221,14 @@ export class Game {
   /** The player's tickets, closest to the current prize first, with how many numbers each needs. */
   get sorted() {
     const set = this.calledSet
-    const need = PRIZES[Math.min(this.stage, 2)].rows
     return this.tickets
-      .map((t, i) => ({ t, i, tg: toGo(t.rows, set, need) }))
+      .map((t, i) => ({ t, i, tg: this.nextOf(t) > PRIZES.length ? 0 : toGo(t.rows, set, this.nextOf(t)) }))
       .sort((a, b) => (this.phase === 'buy' ? a.i - b.i : a.tg - b.tg || a.i - b.i))
+  }
+
+  /** the prize level card `t` is playing for next (past the last prize when it has won them all) */
+  nextOf(t: Ticket) {
+    return (this.paid.get(t.id) ?? 0) + 1
   }
 
   start() {
@@ -266,6 +271,7 @@ export class Game {
     this.stage = 0
     this.claims = [null, null, null]
     this.roundWin = 0
+    this.paid = new Map()
     this.nearSaid.clear()
     this.tickets = this.queued
     this.queued = []
@@ -292,7 +298,7 @@ export class Game {
     this.timerText = 'LIVE'
     this.emit()
     const lead = SFX.go()
-    this.say('Host', 'Eyes down! Playing for one line.')
+    this.say('Host', `Eyes down! ${MAX_CALLS} balls, playing for ${PRIZES[0].label.toLowerCase()}.`)
     this.tower.busy = true
     this.picked.clear()
     SFX.whirl(SPIN_UP / 1000 + lead)
@@ -322,83 +328,67 @@ export class Game {
       const mine = this.tickets.some(t => t.nums.includes(n))
       SFX.ding(this.called.length % 7)
       if (mine) SFX.hit()
-      const wait = this.checkPrize()
-      if (!wait) this.nearCheck(mine)
+      this.checkPrize()
+      this.nearCheck(mine)
       this.emit()
-      if (this.stage <= 2 && this.called.length >= MAX_CALLS) {
-        this.say('Host', `All ${MAX_CALLS} balls called. ${PRIZES[this.stage].label} goes unclaimed this round.`)
-        this.toast(`${MAX_CALLS} BALLS · ROUND OVER`, 'claim')
+      if (this.called.length >= MAX_CALLS) {
+        this.say('Host', `All ${MAX_CALLS} balls drawn. Round over!`)
         this.stage = 3
-      }
-      if (this.stage > 2) {
         this.tower.busy = false
-        setTimeout(() => this.endRound(), wait || 900)
-        return
+        setTimeout(() => this.endRound(), this.win ? WIN_PAUSE : 900)
       }
-      // a line prize never stops the draw: the balls keep coming
-      if (wait) this.say('Host', `Now playing for ${PRIZES[this.stage].label.toLowerCase()}.`)
     }
   }
 
-  /** Gives out the current prize if a ticket has it; returns how long to wait before ending the round if this was the Full House (0 = no prize). */
-  private checkPrize(): number {
+  /** Pays each of the player's cards for every prize it has newly reached, and has the room's players call their wins. */
+  private checkPrize() {
     const set = this.calledSet
-    const z = PRIZES[this.stage]
-    const mine = this.tickets.filter(t => rowsDone(t.rows, set) >= z.rows)
-    const bots = this.bots.filter(b => b.ts.some(g => rowsDone(g, set) >= z.rows)).map(b => b.name)
-    if (!mine.length && !bots.length) return 0
     const balls = this.called.length
-    const jackpot = this.stage === 2 && balls <= JACKPOT_BALLS
-    const label = jackpot ? 'Full House Jackpot' : z.label
-    // everyone who got it on the same ball shares the prize
-    const winners = (mine.length ? ['You'] : []).concat(bots)
-    const share = winners.length
-    let myPay = 0
-    if (mine.length) {
-      const best = mine.reduce((a, t) => (t.price > a.price ? t : a))
-      myPay = Math.round((best.price * (jackpot ? JACKPOT_X : z.x)) / share)
-      this.pts += myPay
-      this.roundWin += myPay
-      this.gain = { key: ++this.uid, amt: myPay }
-      this.showWin(best, label, myPay, jackpot)
+    let pay = 0
+    let top = 0
+    let best: Ticket | null = null
+    for (const t of this.tickets) {
+      const was = this.paid.get(t.id) ?? 0
+      const now = Math.min(PRIZES.length, levelOf(t.rows, set))
+      if (now <= was) continue
+      // each level pays the difference, so a card ends up with its top prize's multiplier
+      pay += prizeAt(t.price, now) - prizeAt(t.price, was)
+      this.paid.set(t.id, now)
+      if (now > top || (now === top && best && t.price > best.price)) {
+        top = now
+        best = t
+      }
     }
-    const botPay = Math.round((PRICES[1] * (jackpot ? JACKPOT_X : z.x)) / share)
-    this.claims[this.stage] = {
-      who: winners.length > 2 ? `${winners[0]} +${winners.length - 1}` : winners.join(' & '),
-      pay: mine.length ? myPay : botPay,
-      balls,
+    if (best) {
+      const z = PRIZES[top - 1]
+      pay = Math.round(pay * 100) / 100
+      this.pts = Math.round((this.pts + pay) * 100) / 100
+      this.roundWin += pay
+      this.gain = { key: ++this.uid, amt: pay }
+      this.winners.unshift({ id: ++this.uid, who: 'You', label: z.label, pay, balls, round: this.round })
+      this.showWin(best, z.label, pay, top)
     }
-    winners.forEach(w =>
-      this.winners.unshift({
-        id: ++this.uid,
-        who: w,
-        label,
-        pay: w === 'You' ? myPay : botPay,
-        balls,
-        round: this.round,
-      }),
-    )
+    // the room's players win too, now and then, and say so in the chat
+    for (const b of this.bots) {
+      const lv = Math.min(PRIZES.length, Math.max(0, ...b.ts.map(g => levelOf(g, set))))
+      if (lv > (b.lv ?? 0)) {
+        b.lv = lv
+        if (Math.random() < 0.35) this.say(b.name, PRIZES[lv - 1].label + (lv >= 3 ? '! 🎉' : '!'))
+      }
+    }
     if (this.winners.length > 20) this.winners.length = 20
-    this.say(
-      'Host',
-      `${winners.join(', ')} ${winners.length > 1 ? 'share' : 'wins'} ${label} on ${balls} balls${share > 1 ? ' (shared)' : ''}`,
-    )
-    if (!mine.length) {
-      this.toast(`${label.toUpperCase()} · ${winners[0]}${share > 1 ? ' +' + (share - 1) : ''}`, 'claim')
-      if (this.tickets.length && this.stage < 2) SFX.aww()
-    }
-    this.stage++
-    return mine.length ? WIN_PAUSE : PRIZE_PAUSE
   }
 
   /** Toasts when the player's best ticket is one or two numbers away. */
   private nearCheck(mine: boolean) {
     if (!this.tickets.length) return
     const set = this.calledSet
-    const need = PRIZES[this.stage].rows
-    const best = Math.min(...this.tickets.map(t => toGo(t.rows, set, need)))
+    const open = this.tickets.filter(t => this.nextOf(t) <= PRIZES.length)
     if (mine) this.shakeKey++
-    const key = this.stage + ':' + best
+    if (!open.length) return
+    const best = Math.min(...open.map(t => toGo(t.rows, set, this.nextOf(t))))
+    const lv = Math.min(...open.map(t => this.nextOf(t)))
+    const key = lv + ':' + best
     if (best <= 2 && !this.nearSaid.has(key)) {
       this.nearSaid.add(key)
       this.toast(best === 1 ? '1 TO GO!' : '2 TO GO', 'near')
@@ -427,7 +417,8 @@ export class Game {
     }, 1000)
   }
 
-  private showWin(t: Ticket, prize: string, pay: number, jackpot: boolean) {
+  private showWin(t: Ticket, prize: string, pay: number, level: number) {
+    const jackpot = false
     const set = this.calledSet
     const cols = ['#22d3ee', '#f472b6', '#facc15', '#a78bfa', '#34d399', '#fb923c']
     const confetti: ConfettiPiece[] = []
@@ -448,17 +439,20 @@ export class Game {
       }
     this.win = {
       key: ++this.uid,
-      title: jackpot ? 'JACKPOT!' : this.stage === 2 ? 'FULL HOUSE!' : this.stage === 1 ? 'TWO LINES!' : 'ONE LINE!',
+      title: PRIZES[level - 1].label.toUpperCase() + '!',
       prize,
       pay,
       ticket: t,
-      done: t.rows.map(r => r.every(n => !n || set.has(n))),
       balls: this.called.length,
       jackpot,
       confetti,
     }
-    SFX.bingo()
-    setTimeout(() => SFX.cheer(this.stage >= 2 || jackpot), 500)
+    // a single line pays back less than the card, so it gets a chime; bigger wins get the show
+    if (level < 2) SFX.star(1)
+    else {
+      SFX.bingo()
+      setTimeout(() => SFX.cheer(level >= 4), 650)
+    }
     clearTimeout(this.winTimer)
     this.winTimer = window.setTimeout(() => this.hideWin(), WIN_PAUSE - 200)
   }

@@ -387,7 +387,7 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 
-@media (max-width:999px){.hostnote{bottom:calc(84px + env(safe-area-inset-bottom,0px))}.toasts{top:38%}.toast{font-size:20px}}
+@media (max-width:999px){.hostnote{bottom:calc(84px + env(safe-area-inset-bottom,0px))}.toasts{top:62px;left:12px;transform:none;align-items:flex-start}.toast:not(:last-child){display:none}.toast{font-size:13px;padding:4px 12px;border-radius:999px;border-width:1.5px}.toast.claim{font-size:13px}}
 
 /* ---------- stake chips and the pick button ---------- */
 .shop{display:flex;flex-direction:column;gap:12px}
@@ -505,3 +505,53 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .bal.up .bt b{color:#86efac}
 .gain{position:absolute;right:8px;top:100%;margin-top:6px;z-index:30;padding:3px 10px;border-radius:999px;background:linear-gradient(180deg,#4ade80,#16a34a);color:#052e16;font:800 13px var(--display);white-space:nowrap;box-shadow:0 0 16px #22c55eaa;pointer-events:none;animation:gain 2.6s ease-out forwards}
 @keyframes gain{0%{opacity:0;transform:translateY(10px) scale(.8)}12%{opacity:1;transform:none}75%{opacity:1;transform:translateY(-4px)}100%{opacity:0;transform:translateY(-14px)}}
+/* the prize ladder over the cards: taken, playing now, next */
+.tprizes{list-style:none;margin:0 0 8px;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.tprizes li{display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:10px;background:#0b0e3e;border:1px solid #2c3290;color:#8f95d6;text-align:center;min-width:0}
+.tprizes b{font:700 11px var(--display);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.tprizes small{font:600 10px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tprizes li.live{border-color:#facc15;color:#fde68a;box-shadow:0 0 10px #facc1544}
+.tprizes li.won{opacity:.6;text-decoration:none}
+.tprizes li.won b{text-decoration:line-through}
+.tprizes li.mine{opacity:1;border-color:#22c55e;color:#86efac;box-shadow:0 0 10px #22c55e55}
+.tprizes li.mine b{text-decoration:none}
+/* a line finished after its prize was already won: lit, but marked as not paying */
+.trow.late{position:relative;box-shadow:0 0 0 1.5px #94a3b8aa}
+.trow.late::after{content:'TAKEN';position:absolute;right:-2px;top:50%;transform:translate(0,-50%) rotate(-8deg);font:800 9px var(--display);letter-spacing:.06em;color:#0b0e3e;background:#cbd5e1;padding:1px 5px;border-radius:5px;box-shadow:0 1px 3px #0008;pointer-events:none}
+/* 5 × 5 cards: the B I N G O header and the free star in the middle */
+.trow.thead span{height:auto;padding:2px 0;background:none;box-shadow:none;font:800 14px var(--display);color:#fff;border-radius:6px;text-shadow:0 0 8px currentColor}
+.trow.thead .h0{color:#60a5fa}.trow.thead .h1{color:#f87171}.trow.thead .h2{color:#c084fc}.trow.thead .h3{color:#4ade80}.trow.thead .h4{color:#fbbf24}
+.tgrid span.free{background:radial-gradient(circle at 40% 35%,#fde68a,#f59e0b 70%);color:#7c2d12;box-shadow:inset 0 0 0 2px #fff8}
+.tgrid span.free svg{width:55%;height:55%;fill:currentColor}
+.tgrid span.free.bl svg{fill:#7c2d12}
+.tgrid span.bl{font-family:var(--body)}
+.tlist.stack .trow.thead span{font-size:11px;padding:0}
+.tgrid.mini span{height:26px}
+/* phones: the 5 × 5 cards stacked two by two, kept compact so all four fit with the machine */
+@media (max-width:999px){
+  .app.playing .globe{width:min(100%,520px,calc((100svh - 550px) * .7));min-width:130px}
+  .tlist.stack .tgrid span{height:22px;font-size:12px}
+  .tlist.stack .trow.thead span{height:auto;font-size:10px}
+  .tlist.stack .tgrid,.tlist.stack .trow{gap:2px}
+  .tlist.stack .ticket footer{display:none}
+  .tlist.stack .ticket{gap:3px}
+}
+.tgrid .trow.thead span{box-shadow:none!important;background:none!important}
+@media (max-width:999px){.app.playing .globe{margin-bottom:-2%}}
+/* the big tray copy: only on phones and tablets once cards are bought (the machine is small then) */
+.mtray{display:none}
+@media (max-width:999px){
+  .app.playing .mtray{display:flex;position:absolute;z-index:2;left:50%;top:-4px;transform:translateX(-50%);width:min(calc(100vw - 150px),224px);justify-content:space-between;gap:3px;padding:3px 5px;border-radius:999px;background:linear-gradient(180deg,#2a0f5c,#140838);border:2px solid #c084fc;box-shadow:0 0 16px #d946ef88,inset 0 0 12px #00000088}
+  .mtray span{--h:#3b82f6;flex:1;aspect-ratio:1;max-width:28px;border-radius:50%;background:radial-gradient(circle at 50% 30%,#05010f 45%,color-mix(in srgb,var(--h) 70%,#000) 100%);box-shadow:inset 0 2px 5px #000c,0 3px 8px color-mix(in srgb,var(--h) 50%,transparent);display:grid;place-items:center}
+  .mtray span:nth-child(2){--h:#f59e0b}.mtray span:nth-child(3){--h:#a855f7}.mtray span:nth-child(4){--h:#22c55e}.mtray span:nth-child(5){--h:#ef4444}.mtray span:nth-child(6){--h:#06b6d4}.mtray span:nth-child(7){--h:#ec4899}
+  .mtray .ball{width:100%;height:100%;animation:trayin .35s cubic-bezier(.2,1.5,.4,1)}
+  .mtray .ball b{font-size:clamp(9px,2.8vw,11.5px)}
+  @keyframes trayin{from{transform:translateY(60%) scale(.4);opacity:0}}
+}
+/* a win: a slim banner under the header that never blocks the machine or the cards */
+.winbar{position:fixed;z-index:45;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;background:linear-gradient(180deg,#3b1d9a,#1a0b4d);border:2px solid #facc15;box-shadow:0 0 24px #facc1588,0 10px 30px #000a;pointer-events:none;white-space:nowrap;animation:winbar 2.5s ease-in-out forwards}
+.winbar b{font:700 17px var(--display);letter-spacing:.05em;color:#fff;text-shadow:0 0 10px var(--pink)}
+.winbar em{font:800 18px var(--display);font-style:normal;color:#4ade80;text-shadow:0 0 10px #22c55e88}
+.winbar small{font:600 12px var(--body);color:#c7cbf5}
+@keyframes winbar{0%{opacity:0;transform:translate(-50%,-30px)}10%{opacity:1;transform:translate(-50%,0)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-20px)}}
+@media (max-width:999px){.winbar{top:10px;left:10px;transform:none;height:44px;gap:8px;padding:0 14px;animation-name:winbarm}.winbar b{font-size:14px}.winbar em{font-size:15px}.winbar small{display:none}@keyframes winbarm{0%{opacity:0;transform:translateY(-20px)}10%,85%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-12px)}}}

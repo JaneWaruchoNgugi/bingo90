@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import { MAX_CARDS, PRICES, PRIZES, kes } from '../game/constants'
+import { MAX_CARDS, PRICES, PRIZES, kes, prizeAt } from '../game/constants'
 import { useGame } from '../hooks/useGame'
-import { TicketRow } from './TicketRow'
+import { CardGrid } from './TicketRow'
 
 const NONE = new Set<number>()
 /** one frame colour per price, cheapest to dearest, matching the stake chips */
@@ -81,17 +81,13 @@ export function CardPicker() {
             >
               <header>
                 <b>Card {i + 1}</b>
-                <span className="tg">{mine ? 'Taken' : '15 numbers'}</span>
+                <span className="tg">{mine ? 'Taken' : '24 numbers'}</span>
               </header>
-              <div className="tgrid">
-                {rows.map((r, ri) => (
-                  <TicketRow key={ri} row={r} set={NONE} />
-                ))}
-              </div>
+              <CardGrid g={rows} set={NONE} />
               <p className="pkpays">
                 {PRIZES.map(z => (
                   <span key={z.label}>
-                    {z.label} <b>{kes(p.prices[i] * z.x)}</b>
+                    {z.label} <b>{kes(prizeAt(p.prices[i], z.level))}</b>
                   </span>
                 ))}
               </p>
