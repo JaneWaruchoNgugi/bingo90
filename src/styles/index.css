@@ -411,21 +411,21 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .pick:disabled{filter:grayscale(.6);opacity:.6;cursor:not-allowed}
 
 /* ---------- the card picker ---------- */
-.picker{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:radial-gradient(60% 50% at 50% 45%,#3b1d9acc,#0a0624f2);backdrop-filter:blur(6px);overflow:hidden;animation:fade .2s ease}
+.picker{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:18px;padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:radial-gradient(60% 50% at 50% 45%,#3b1d9acc,#0a0624f2);backdrop-filter:blur(6px);overflow-x:hidden;overflow-y:auto;animation:fade .2s ease}
 @keyframes fade{from{opacity:0}}
 .pkhd{display:flex;align-items:center;gap:16px}
 .pkhd small{font:700 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
 .pkhd h2{margin:2px 0;font:700 28px var(--display);color:#fff}
 .pkhd p{margin:0;font-size:14px;color:#fde68a}
 .pkring{flex:none;width:68px;height:68px;border-radius:50%;display:grid;place-items:center;font:800 15px var(--display);color:#fff;border:5px solid var(--gold);box-shadow:0 0 18px #facc1566;background:#140a3a}
-.pkdeck{position:relative;width:min(100%,640px);height:300px;touch-action:pan-y;user-select:none;perspective:1000px}
-.pkcard{position:absolute;left:50%;top:50%;width:min(80vw,330px);cursor:pointer;transition:transform .35s cubic-bezier(.2,.9,.3,1),opacity .35s,filter .35s}
-.pkcard.front{transform:translate(-50%,-50%);z-index:2}
-.pkcard.left{transform:translate(-118%,-50%) rotateY(28deg) scale(.78);opacity:.7;filter:brightness(.7)}
-.pkcard.right{transform:translate(18%,-50%) rotateY(-28deg) scale(.78);opacity:.7;filter:brightness(.7)}
+.pkdeck{--cw:min(80vw,330px,calc((100svh - 400px) / 1.08));position:relative;display:grid;justify-items:center;align-items:center;width:min(100%,640px);flex:none;touch-action:pan-y;user-select:none;perspective:1000px}
+.pkcard{grid-area:1/1;width:var(--cw);min-width:220px;cursor:pointer;transition:transform .35s cubic-bezier(.2,.9,.3,1),opacity .35s,filter .35s}
+.pkcard.front{transform:none;z-index:2}
+.pkcard.left{transform:translateX(-68%) rotateY(28deg) scale(.78);opacity:.7;filter:brightness(.7)}
+.pkcard.right{transform:translateX(68%) rotateY(-28deg) scale(.78);opacity:.7;filter:brightness(.7)}
 .pkcard.taken{outline:3px solid var(--gold);outline-offset:3px}
-.pkpays{margin:0;display:flex;justify-content:space-between;gap:6px;font:600 11px var(--body);color:#c7cbf5;padding:0 2px}
-.pkpays b{display:block;font:700 13px var(--display);color:#fde68a}
+.pkpays{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:4px;font:600 11px var(--body);color:#c7cbf5;padding:0 2px;white-space:nowrap;text-align:center}
+.pkpays b{display:block;font:700 clamp(10px,calc(var(--cw) * .04),13px) var(--display);color:#fde68a}
 .pkprice{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);font:700 13px var(--display);padding:3px 14px;border-radius:999px;background:#140a3a;border:1.5px solid var(--t);white-space:nowrap}
 .pkcheck{position:absolute;right:-10px;top:-10px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#3b1d00;box-shadow:0 0 12px #facc15aa}
 .pkcheck svg{width:20px;height:20px}
@@ -442,14 +442,14 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .pkbuy{background:linear-gradient(90deg,#d946ef,#ec4899 55%,#fb923c);color:#fff;box-shadow:0 0 20px #ec489966}
 .pkbuy:disabled{background:#ffffff12;color:#ffffff55;box-shadow:none;cursor:not-allowed}
 @media (max-width:599px){
-  .picker{gap:14px;justify-content:flex-start;padding-top:28px}
+  .picker{gap:14px;justify-content:safe center;padding-top:28px}
   .pkhd h2{font-size:22px}
   .pkring{width:56px;height:56px;font-size:13px;border-width:4px}
-  .pkdeck{height:215px}
+  .pkdeck{--cw:min(84vw,320px,calc((100svh - 380px) / 1.08))}
   .pkfoot button{font-size:15px;padding:14px 10px}
-  .pkcard{width:min(78vw,300px)}
-  .pkcard.left{transform:translate(-112%,-50%) rotateY(28deg) scale(.74)}
-  .pkcard.right{transform:translate(12%,-50%) rotateY(-28deg) scale(.74)}
+  .pkcard.left{transform:translateX(-62%) rotateY(28deg) scale(.74)}
+  .pkcard.right{transform:translateX(62%) rotateY(-28deg) scale(.74)}
+  .pkpays{font-size:10px}
   .pktake{min-width:0;flex:1;font-size:15px;padding:13px 14px}
   .pknav{width:100%}
   .pkslots{gap:8px}
@@ -555,3 +555,16 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .winbar small{font:600 12px var(--body);color:#c7cbf5}
 @keyframes winbar{0%{opacity:0;transform:translate(-50%,-30px)}10%{opacity:1;transform:translate(-50%,0)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-20px)}}
 @media (max-width:999px){.winbar{top:10px;left:10px;transform:none;height:44px;gap:8px;padding:0 14px;animation-name:winbarm}.winbar b{font-size:14px}.winbar em{font-size:15px}.winbar small{display:none}@keyframes winbarm{0%{opacity:0;transform:translateY(-20px)}10%,85%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-12px)}}}
+
+/* short phones: a slimmer picker header so the card, buttons and slots all fit */
+@media (max-height:720px){
+  .picker{gap:10px;padding-top:16px}
+  .pkhd p{display:none}
+  .pkhd h2{font-size:19px}
+  .pkring{width:46px;height:46px;font-size:11px;border-width:3px}
+  .pkdeck{--cw:min(84vw,320px,calc((100svh - 300px) / 1.08))}
+  .pkarrow{width:42px;height:42px}
+  .pktake{padding:11px 14px}
+  .pkslots i{width:32px;height:32px}
+  .pkfoot button{padding:12px 10px}
+}
