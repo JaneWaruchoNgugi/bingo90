@@ -50,6 +50,17 @@ export interface Prefs {
   voice: boolean
   guide: boolean
 }
+/** The saved balance, or the starting one. */
+function loadPts() {
+  try {
+    const v = Number(localStorage.getItem('b90pts'))
+    if (v > 0 && Number.isFinite(v)) return v
+  } catch {
+    // no storage
+  }
+  return START_POINTS
+}
+
 export type PrefKey = keyof Prefs
 export interface Claim {
   who: string
@@ -114,7 +125,11 @@ function loadPrefs(): Prefs {
  * `emit`; the tower canvas reads `tower` directly every frame.
  */
 export class Game {
-  pts = START_POINTS
+  /** the balance, kept on this device so a win is still there after a reload */
+  pts = loadPts()
+  private savedPts = this.pts
+  /** the last amount paid in, for the "+KES" that floats up from the balance */
+  gain: { key: number; amt: number } | null = null
   phase: Phase = 'buy'
   secs = BUY_SECS
   timerText = fmt(BUY_SECS)
@@ -169,6 +184,14 @@ export class Game {
   getVersion = () => this.version
   emit() {
     this.version++
+    if (this.pts !== this.savedPts) {
+      this.savedPts = this.pts
+      try {
+        localStorage.setItem('b90pts', String(this.pts))
+      } catch {
+        // private mode: the balance just won't survive a reload
+      }
+    }
     this.listeners.forEach(l => l())
   }
 
@@ -336,6 +359,7 @@ export class Game {
       myPay = Math.round((best.price * (jackpot ? JACKPOT_X : z.x)) / share)
       this.pts += myPay
       this.roundWin += myPay
+      this.gain = { key: ++this.uid, amt: myPay }
       this.showWin(best, label, myPay, jackpot)
     }
     const botPay = Math.round((PRICES[1] * (jackpot ? JACKPOT_X : z.x)) / share)

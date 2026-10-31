@@ -8,6 +8,8 @@ import { BALLS, LITE, colorOf } from '../game/constants'
  */
 export const W = 500
 export const H = 715
+/** empty margin drawn around the machine so glows fade out instead of being cut off at the canvas edge */
+export const PAD = 36
 const CX = W / 2
 const CY = 408
 const RX = 238
@@ -371,26 +373,31 @@ const pill = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 function layers(px: number) {
   const mk = () => {
     const cv = document.createElement('canvas')
-    cv.width = W * px
-    cv.height = H * px
+    cv.width = (W + PAD * 2) * px
+    cv.height = (H + PAD * 2) * px
     const c = cv.getContext('2d')!
-    c.scale(px, px)
+    c.setTransform(px, 0, 0, px, PAD * px, PAD * px)
     return { cv, c }
   }
   const back = mk()
   let c = back.c
 
   // purple haze behind the machine
-  const halo = c.createRadialGradient(CX, CY, RY * 0.5, CX, CY, RX * 1.35)
+  // both glows fade out well inside the canvas, so no straight edge ever shows
+  const halo = c.createRadialGradient(CX, CY, RY * 0.4, CX, CY, Math.min(CX, H - CY) - 4)
   halo.addColorStop(0, '#a855f740')
   halo.addColorStop(1, '#a855f700')
   c.fillStyle = halo
-  c.fillRect(0, 0, W, H)
-  const th = c.createRadialGradient(CX, SLOT_Y, 20, CX, SLOT_Y, W * 0.55)
+  c.fillRect(-PAD, -PAD, W + PAD * 2, H + PAD * 2)
+  c.save()
+  c.translate(CX, SLOT_Y)
+  c.scale(1, 0.4)
+  const th = c.createRadialGradient(0, 0, 20, 0, 0, Math.min(CX - 4, (SLOT_Y - 4) / 0.4))
   th.addColorStop(0, '#d946ef30')
   th.addColorStop(1, '#d946ef00')
   c.fillStyle = th
-  c.fillRect(0, 0, W, TRAY.y + TRAY.h + 60)
+  c.fillRect(-CX, -SLOT_Y / 0.4, W, H / 0.4)
+  c.restore()
 
   // the pedestal's lower platforms, behind the globe
   const ring = (y: number, rx: number, ry: number, depth: number, top: string, side: string, edge: string) => {
@@ -488,10 +495,10 @@ function layers(px: number) {
   c = front.c
   // pipe walls: a neon outline (wide strokes with their middles cut out, so pipes merge at the neck)
   const tw = document.createElement('canvas')
-  tw.width = W * px
-  tw.height = H * px
+  tw.width = (W + PAD * 2) * px
+  tw.height = (H + PAD * 2) * px
   const t2 = tw.getContext('2d')!
-  t2.scale(px, px)
+  t2.setTransform(px, 0, 0, px, PAD * px, PAD * px)
   t2.lineCap = 'butt'
   for (let k = 0; k < OUTLETS; k++) {
     pipePath(t2, k)
@@ -508,7 +515,7 @@ function layers(px: number) {
   t2.globalCompositeOperation = 'source-over'
   c.save()
   c.beginPath()
-  c.rect(0, TRAY.y + TRAY.h - 2, W, H)
+  c.rect(-PAD, TRAY.y + TRAY.h - 2, W + PAD * 2, H + PAD)
   c.clip()
   c.setTransform(1, 0, 0, 1, 0, 0)
   c.shadowColor = '#d946ef'
@@ -518,7 +525,7 @@ function layers(px: number) {
   // glass shine down each pipe
   c.save()
   c.beginPath()
-  c.rect(0, TRAY.y + TRAY.h, W, H)
+  c.rect(-PAD, TRAY.y + TRAY.h, W + PAD * 2, H + PAD)
   c.clip()
   for (let k = 0; k < OUTLETS; k++) {
     const t = pipe(k)
@@ -674,8 +681,8 @@ function layers(px: number) {
 /** Starts the render and physics loop on canvas `cv`; returns a function that stops it. */
 export function startGlobe(cv: HTMLCanvasElement, gs: GlobeState): () => void {
   const px = Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1)
-  cv.width = W * px
-  cv.height = H * px
+  cv.width = (W + PAD * 2) * px
+  cv.height = (H + PAD * 2) * px
   const c = cv.getContext('2d')!
   const art = layers(px)
   const small = Math.round(BR * (1 + DEPTH_K) * px)
@@ -699,7 +706,7 @@ export function startGlobe(cv: HTMLCanvasElement, gs: GlobeState): () => void {
     c.setTransform(1, 0, 0, 1, 0, 0)
     c.clearRect(0, 0, cv.width, cv.height)
     c.drawImage(art.back, 0, 0)
-    c.setTransform(px, 0, 0, px, 0, 0)
+    c.setTransform(px, 0, 0, px, PAD * px, PAD * px)
     const done: Ball[] = []
     const moving: { b: Ball; x: number; y: number; k: number }[] = []
     const inside: Ball[] = []
@@ -751,7 +758,7 @@ export function startGlobe(cv: HTMLCanvasElement, gs: GlobeState): () => void {
       // the pipe runs behind the tray: the ball shows below it, and rises into view through its hole
       c.save()
       c.beginPath()
-      c.rect(0, TRAY.y + TRAY.h - 1, W, H)
+      c.rect(-PAD, TRAY.y + TRAY.h - 1, W + PAD * 2, H + PAD)
       c.arc(slotX(m.b.pick!.slot), SLOT_Y, SLOT_R - 2, 0, Math.PI * 2)
       c.clip()
       c.drawImage(s, m.x - r, m.y - r, r * 2, r * 2)
@@ -760,7 +767,7 @@ export function startGlobe(cv: HTMLCanvasElement, gs: GlobeState): () => void {
     c.setTransform(1, 0, 0, 1, 0, 0)
     c.drawImage(art.front, 0, 0)
     // running lights along the front edge of the base
-    c.setTransform(px, 0, 0, px, 0, 0)
+    c.setTransform(px, 0, 0, px, PAD * px, PAD * px)
     const lit = Math.floor(now / (gs.busy ? 90 : 320))
     for (let i = 0; i < 18; i++) {
       const a = Math.PI * (0.08 + (0.84 * i) / 17)

@@ -65,7 +65,8 @@ button svg{width:18px;height:18px;vertical-align:-4px}
 .prizeline .jp::before{content:'·';margin-right:10px;color:#6b6fa8}
 .prizeline .jp em{font-size:14px}
 .globe{position:relative;container-type:inline-size;width:min(100%,calc((100vh - 156px) * .7));min-width:300px;max-width:720px}
-.globe canvas{position:absolute;inset:0;width:100%;height:100%}
+/* the canvas reaches past the box by the engine's PAD (36 of 500 × 715) so its glows fade out freely */
+.globe canvas{position:absolute;left:-7.2%;right:-7.2%;top:-5.035%;bottom:-5.035%;width:114.4%;height:110.07%;pointer-events:none}
 /* the countdown to the draw, over the empty top of the globe while tickets are on sale */
 .globe .latest.mcount{display:grid;position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:clamp(64px,34cqw,118px);height:clamp(64px,34cqw,118px);border-color:#a5b4fc;background:conic-gradient(var(--cyan) calc(var(--p)*1%),#ffffff18 0);box-shadow:0 0 28px #22d3ee55}
 .globe .latest.mcount>div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#0b0e3ee6}
@@ -498,3 +499,9 @@ button svg{width:18px;height:18px;vertical-align:-4px}
   .tlist.stack .ticket header b{font-size:11px}
   .ttabs button{font-size:10px}
 }
+/* money coming in: the balance glows green while it counts up, and the amount floats up from it */
+.bal{position:relative}
+.bal.up{border-color:#22c55e;box-shadow:0 0 22px #22c55e88}
+.bal.up .bt b{color:#86efac}
+.gain{position:absolute;right:8px;top:100%;margin-top:6px;z-index:30;padding:3px 10px;border-radius:999px;background:linear-gradient(180deg,#4ade80,#16a34a);color:#052e16;font:800 13px var(--display);white-space:nowrap;box-shadow:0 0 16px #22c55eaa;pointer-events:none;animation:gain 2.6s ease-out forwards}
+@keyframes gain{0%{opacity:0;transform:translateY(10px) scale(.8)}12%{opacity:1;transform:none}75%{opacity:1;transform:translateY(-4px)}100%{opacity:0;transform:translateY(-14px)}}
